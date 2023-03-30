@@ -58,7 +58,7 @@ type Backend interface {
 	// GetOrchestrationMetadata gets the metadata associated with the given orchestration instance ID.
 	//
 	// Returns [api.ErrInstanceNotFound] if the orchestration instance doesn't exist.
-	GetOrchestrationMetadata(context.Context, api.InstanceID) (*api.OrchestrationMetadata, error)
+	GetOrchestrationMetadata(context.Context, api.OrchestrationName, api.InstanceID) (*api.OrchestrationMetadata, error)
 
 	// CompleteOrchestrationWorkItem completes a work item by saving the updated runtime state to durable storage.
 	//

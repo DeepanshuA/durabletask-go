@@ -48,8 +48,10 @@ type grpcExecutor struct {
 	pendingActivities    map[string]*activityExecutionResult
 	backend              Backend
 	logger               Logger
-	onWorkItemConnection func(context.Context) error
+	onWorkItemConnection func(context.Context, []string, []string) error
 	streamShutdownChan   <-chan any
+	workflowNames        []string
+	activityNames        []string
 }
 
 type grpcExecutorOptions func(g *grpcExecutor)
@@ -63,7 +65,7 @@ func IsDurableTaskGrpcRequest(fullMethodName string) bool {
 // WithOnGetWorkItemsConnectionCallback allows the caller to get a notification when an external process
 // connects over gRPC and invokes the GetWorkItems operation. This can be useful for doing things like
 // lazily auto-starting the task hub worker only when necessary.
-func WithOnGetWorkItemsConnectionCallback(callback func(context.Context) error) grpcExecutorOptions {
+func WithOnGetWorkItemsConnectionCallback(callback func(context.Context, []string, []string) error) grpcExecutorOptions {
 	return func(g *grpcExecutor) {
 		g.onWorkItemConnection = callback
 	}
@@ -82,6 +84,8 @@ func NewGrpcExecutor(grpcServer *grpc.Server, be Backend, logger Logger, opts ..
 		pendingActivities:    make(map[string]*activityExecutionResult),
 		backend:              be,
 		logger:               logger,
+		workflowNames:        make([]string, 0),
+		activityNames:        make([]string, 0),
 	}
 
 	for _, opt := range opts {
@@ -129,6 +133,7 @@ func (executor grpcExecutor) ExecuteActivity(ctx context.Context, iid api.Instan
 	defer delete(executor.pendingActivities, key)
 
 	task := e.GetTaskScheduled()
+	executor.activityNames = append(executor.activityNames, task.Name)
 	executor.workItemQueue <- &protos.WorkItem{
 		Request: &protos.WorkItem_ActivityRequest{
 			ActivityRequest: &protos.ActivityRequest{
@@ -179,7 +184,7 @@ func (g *grpcExecutor) GetWorkItems(req *protos.GetWorkItemsRequest, stream prot
 	// for auto-starting the worker. The app also has an opportunity to set itself as unavailable by returning an error.
 	callback := g.onWorkItemConnection
 	if callback != nil {
-		if err := callback(stream.Context()); err != nil {
+		if err := callback(stream.Context(), g.workflowNames, g.activityNames); err != nil {
 			message := fmt.Sprint("unable to establish work item stream at this time: ", err)
 			g.logger.Warn(message)
 			return status.Errorf(codes.Unavailable, message)
@@ -279,6 +284,7 @@ func (g *grpcExecutor) StartInstance(ctx context.Context, req *protos.CreateInst
 	ctx, span := helpers.StartNewCreateOrchestrationSpan(ctx, req.Name, req.Version.Value, instanceID)
 	defer span.End()
 
+	g.workflowNames = append(g.workflowNames, req.Name)
 	e := helpers.NewExecutionStartedEvent(req.Name, instanceID, req.Input, nil, helpers.TraceContextFromSpan(span))
 	if err := g.backend.CreateOrchestrationInstance(ctx, e); err != nil {
 		return nil, err

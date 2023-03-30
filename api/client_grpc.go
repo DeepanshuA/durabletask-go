@@ -185,7 +185,7 @@ func makeGetInstanceRequest(id InstanceID, opts []FetchOrchestrationMetadataOpti
 func makeOrchestrationMetadata(resp *protos.GetInstanceResponse) *OrchestrationMetadata {
 	metadata := &OrchestrationMetadata{
 		InstanceID:             InstanceID(resp.OrchestrationState.InstanceId),
-		Name:                   resp.OrchestrationState.Name,
+		Name:                   OrchestrationName(resp.OrchestrationState.Name),
 		RuntimeStatus:          resp.OrchestrationState.OrchestrationStatus,
 		CreatedAt:              resp.OrchestrationState.CreatedTimestamp.AsTime(),
 		LastUpdatedAt:          resp.OrchestrationState.LastUpdatedTimestamp.AsTime(),

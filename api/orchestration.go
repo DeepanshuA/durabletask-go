@@ -22,10 +22,11 @@ var (
 
 // InstanceID is a unique identifier for an orchestration instance.
 type InstanceID string
+type OrchestrationName string
 
 type OrchestrationMetadata struct {
 	InstanceID             InstanceID
-	Name                   string
+	Name                   OrchestrationName
 	RuntimeStatus          protos.OrchestrationStatus
 	CreatedAt              time.Time
 	LastUpdatedAt          time.Time
@@ -37,7 +38,7 @@ type OrchestrationMetadata struct {
 
 func NewOrchestrationMetadata(
 	iid InstanceID,
-	name string,
+	name OrchestrationName,
 	status protos.OrchestrationStatus,
 	createdAt time.Time,
 	lastUpdatedAt time.Time,
@@ -128,7 +129,7 @@ func (m *OrchestrationMetadata) UnmarshalJSON(data []byte) (err error) {
 		return errors.New("missing 'id' field")
 	}
 	if name, ok := obj["name"]; ok {
-		m.Name = name.(string)
+		m.Name = OrchestrationName(name.(string))
 	} else {
 		return errors.New("missing 'name' field")
 	}
